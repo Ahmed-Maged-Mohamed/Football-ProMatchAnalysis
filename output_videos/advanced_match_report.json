@@ -1,0 +1,74 @@
+{
+  "frames_analyzed": 750,
+  "duration_s": 30.0,
+  "tracked_stable": {
+    "player": 24,
+    "goalkeeper": 5,
+    "referee": 9
+  },
+  "possession_coverage_percent": 28.0,
+  "unknown_possession_frames": 540,
+  "team_classification": {
+    "method": "siglip",
+    "fitted": true,
+    "training_crops": 80
+  },
+  "pitch_calibration": {
+    "enabled": true,
+    "coverage_percent": 100.0,
+    "median_inlier_ratio": 1.0,
+    "median_reprojection_error_cm": 50.4
+  },
+  "ball_territory": {
+    "calibrated_ball_frames": 261,
+    "zone_percent": {
+      "defensive_third": 24.1,
+      "middle_third": 30.7,
+      "attacking_third": 45.2,
+      "left_channel": 8.8,
+      "central_channel": 46.7,
+      "right_channel": 44.4
+    }
+  },
+  "teams": {
+    "team_1": {
+      "possession_percent_of_known": 80.5,
+      "formation_estimate": "pitch-space lines: 0-4-5-1",
+      "stable_players_used": 10,
+      "events": {
+        "pass": 1
+      }
+    },
+    "team_2": {
+      "possession_percent_of_known": 19.5,
+      "formation_estimate": "pitch-space lines: 0-4-6-0",
+      "stable_players_used": 10,
+      "events": {
+        "pass": 1
+      }
+    }
+  },
+  "events": [
+    {
+      "time_s": 1.72,
+      "type": "pass",
+      "from": 41,
+      "to": 23,
+      "team": "team_2",
+      "confidence": "heuristic"
+    },
+    {
+      "time_s": 22.52,
+      "type": "pass",
+      "from": 2,
+      "to": 7,
+      "team": "team_1",
+      "confidence": "heuristic"
+    }
+  ],
+  "limitations": [
+    "Player names require jersey-number OCR and a roster.",
+    "Fouls and set pieces require a trained action/event model; object detection alone cannot report them reliably.",
+    "Passes and shots remain trajectory-based candidates requiring review."
+  ]
+}

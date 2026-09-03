@@ -1,0 +1,33 @@
+{
+  "frames_analyzed": 8,
+  "duration_s": 32.0,
+  "tracked_stable": {
+    "player": 0,
+    "goalkeeper": 0,
+    "referee": 0
+  },
+  "possession_coverage_percent": 0.0,
+  "unknown_possession_frames": 8,
+  "teams": {
+    "team_1": {
+      "possession_percent_of_known": 0.0,
+      "formation_estimate": "insufficient stable players",
+      "stable_players_used": 0,
+      "events": {}
+    },
+    "team_2": {
+      "possession_percent_of_known": 0.0,
+      "formation_estimate": "insufficient stable players",
+      "stable_players_used": 0,
+      "events": {}
+    }
+  },
+  "events": [],
+  "limitations": [
+    "Player names require jersey-number OCR and a roster.",
+    "Fouls and set pieces require a trained action/event model; object detection alone cannot report them reliably.",
+    "Formation and zones are screen-space estimates until pitch calibration is added.",
+    "Passes and shots are trajectory-based candidates requiring review.",
+    "Zone metrics are withheld until pitch calibration is available."
+  ]
+}
