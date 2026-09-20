@@ -1,0 +1,155 @@
+{
+  "frames_analyzed": 750,
+  "duration_s": 30.0,
+  "thresholds": {
+    "tracker_input": 0.1,
+    "person": 0.18,
+    "ball": 0.1
+  },
+  "tracking_diagnostics": {
+    "player": {
+      "all_track_ids": 50,
+      "stable_track_ids_ge_10_frames": 28,
+      "short_track_ids_lt_10_frames": 22,
+      "median_track_length_frames": 15.0
+    },
+    "goalkeeper": {
+      "all_track_ids": 9,
+      "stable_track_ids_ge_10_frames": 2,
+      "short_track_ids_lt_10_frames": 7,
+      "median_track_length_frames": 3.0
+    },
+    "referee": {
+      "all_track_ids": 17,
+      "stable_track_ids_ge_10_frames": 7,
+      "short_track_ids_lt_10_frames": 10,
+      "median_track_length_frames": 2.0
+    },
+    "ids_seen_as_multiple_classes": 20,
+    "interpretation": "Counts diagnose fragmentation/class churn; they do not prove ID switches without labels."
+  },
+  "ball_diagnostics": {
+    "raw_detection_candidates": 269,
+    "accepted_detection_frames": 268,
+    "rejected_candidates": 1,
+    "predicted_gap_fill_frames": 37,
+    "missing_frames": 445
+  },
+  "possession": {
+    "observed_known_frames": 188,
+    "observed_unknown_frames": 525,
+    "observed_coverage_percent": 26.4,
+    "inferred_gap_fill_known_frames": 33,
+    "inferred_gap_fill_unknown_frames": 4,
+    "inferred_frames_excluded_from_percentages": true
+  },
+  "team_classification": {
+    "method": "colour",
+    "fitted": false,
+    "training_crops": 0
+  },
+  "pitch_calibration": {
+    "enabled": true,
+    "fresh_frames": 607,
+    "reused_frames": 23,
+    "rejected_or_expired_frames": 120,
+    "fresh_coverage_percent": 80.9,
+    "usable_including_bounded_reuse_percent": 84.0,
+    "max_stale_reuse_frames": 8,
+    "median_fresh_inlier_ratio": 0.857,
+    "median_fresh_reprojection_error_cm": 60.5,
+    "quality_note": "Reprojection error is an internal keypoint-fit residual, not verified real-world accuracy."
+  },
+  "ball_territory": {
+    "calibrated_ball_frames": 236,
+    "frames_by_calibration_source": {
+      "fresh": 231,
+      "reused": 5
+    },
+    "frames_by_observation_source": {
+      "detected": 208,
+      "predicted_gap_fill": 28
+    },
+    "absolute_pitch_zone_percent_all_accepted": {
+      "defensive_third": 64.8,
+      "middle_third": 10.2,
+      "attacking_third": 25.0,
+      "left_channel": 0.0,
+      "central_channel": 28.0,
+      "right_channel": 72.0
+    },
+    "absolute_pitch_zone_percent_detected_only": {
+      "defensive_third": 71.2,
+      "middle_third": 9.1,
+      "attacking_third": 19.7,
+      "left_channel": 0.0,
+      "central_channel": 31.2,
+      "right_channel": 68.8
+    },
+    "attack_direction_normalized": false,
+    "interpretation": "Absolute left-to-right pitch occupancy; defensive/attacking labels require a verified per-team attack direction."
+  },
+  "teams": {
+    "team_1": {
+      "observed_possession_percent_of_known": 91.0,
+      "outfield_longitudinal_distribution": [
+        0,
+        3,
+        7,
+        0
+      ],
+      "distribution_axis": "absolute_pitch_left_to_right",
+      "formation_claimed": false,
+      "stable_players_used": 10,
+      "event_candidates": {
+        "shot_candidate": 1
+      }
+    },
+    "team_2": {
+      "observed_possession_percent_of_known": 9.0,
+      "outfield_longitudinal_distribution": [
+        0,
+        0,
+        5,
+        1
+      ],
+      "distribution_axis": "absolute_pitch_left_to_right",
+      "formation_claimed": false,
+      "stable_players_used": 6,
+      "event_candidates": {}
+    }
+  },
+  "events": [
+    {
+      "time_s": 19.08,
+      "type": "shot_candidate",
+      "team": "unknown",
+      "confidence": "low",
+      "review_required": true,
+      "evidence": {
+        "fresh_calibration": true,
+        "speed_cm_s": 6590.0,
+        "near_penalty_area": true
+      }
+    },
+    {
+      "time_s": 21.6,
+      "type": "shot_candidate",
+      "team": "team_1",
+      "confidence": "low",
+      "review_required": true,
+      "evidence": {
+        "fresh_calibration": true,
+        "speed_cm_s": 1493.0,
+        "near_penalty_area": true
+      }
+    }
+  ],
+  "limitations": [
+    "No ground-truth temporal labels were used, so accuracy and ID-switch improvements are not claimed.",
+    "Team labels are unsupervised appearance clusters; ambiguous goalkeeper labels are withheld.",
+    "Events are low-confidence review candidates, not measured passes or shots.",
+    "Outfield distributions are not formations; territory is not normalized to attack direction.",
+    "Player names, fouls, set pieces, and goals require labelled data and dedicated models."
+  ]
+}

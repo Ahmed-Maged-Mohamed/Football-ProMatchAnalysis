@@ -11,8 +11,15 @@ def main():
     parser.add_argument("--output", default="output_videos/annotated_match.mp4")
     parser.add_argument("--report", default="output_videos/match_report.json")
     parser.add_argument("--stride", type=int, default=2, help="Analyse every Nth frame (1 = all frames).")
+    parser.add_argument("--max-analyzed-frames", type=int, default=0,
+                        help="Stop after this many analyzed frames (0 = full video); useful for reproducible smoke tests.")
     parser.add_argument("--imgsz", type=int, default=1280, help="Detector inference resolution; higher improves small-ball detection.")
     parser.add_argument("--tracker", default="Trackers/bytetrack.yaml", help="Ultralytics tracker configuration file.")
+    parser.add_argument("--tracker-conf", type=float, default=.10,
+                        help="Detector input threshold; keep at or below ByteTrack track_low_thresh.")
+    parser.add_argument("--person-conf", type=float, default=.18, help="Post-tracking player/keeper/referee threshold.")
+    parser.add_argument("--ball-conf", type=float, default=.10, help="Ball candidate threshold before temporal selection.")
+    parser.add_argument("--ball-gap-frames", type=int, default=3, help="Maximum short gap filled by trajectory prediction.")
     parser.add_argument("--pitch-model", default="models/pitch-keypoints-best.pt",
                         help="YOLO pose checkpoint trained on the 32 pitch landmarks; pass an empty string to disable.")
     parser.add_argument("--pitch-conf", type=float, default=.50, help="Minimum pitch-landmark confidence used for homography.")
@@ -32,8 +39,11 @@ def main():
     width, height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     writer = cv2.VideoWriter(args.output, cv2.VideoWriter_fourcc(*"mp4v"), fps/args.stride, (width,height))
-    tracker, frame_no = Tracker(
+    tracker, frame_no, analyzed_frames = Tracker(
         args.model,
+        confidence=args.tracker_conf,
+        person_confidence=args.person_conf,
+        ball_confidence=args.ball_conf,
         tracker_config=args.tracker,
         image_size=args.imgsz,
         pitch_model=args.pitch_model,
@@ -41,7 +51,8 @@ def main():
         team_method=args.team_method,
         team_samples=args.team_samples,
         radar=not args.no_radar,
-    ), 0
+        ball_gap_frames=args.ball_gap_frames,
+    ), 0, 0
     if args.team_method == "siglip":
         print("Collecting player crops and fitting SigLIP/UMAP team clusters...", flush=True)
         tracker.fit_team_classifier(args.input)
@@ -51,6 +62,9 @@ def main():
         if frame_no % args.stride == 0:
             objects = tracker.analyse_frame(frame, frame_no//args.stride, fps/args.stride)
             writer.write(tracker.draw(frame, objects))
+            analyzed_frames += 1
+            if args.max_analyzed_frames and analyzed_frames >= args.max_analyzed_frames:
+                break
         if frame_no and frame_no % (100 * args.stride) == 0:
             percent = (100 * frame_no / total_frames) if total_frames else 0
             print(f"Analysed frame {frame_no}/{total_frames} ({percent:.1f}%)", flush=True)

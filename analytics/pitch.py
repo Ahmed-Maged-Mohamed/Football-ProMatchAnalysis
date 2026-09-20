@@ -1,4 +1,4 @@
-"""Pitch keypoint inference, homography estimation and frame overlays."""
+"""Pitch keypoint inference, validated homography estimation and overlays."""
 
 from collections import deque
 from dataclasses import dataclass, field
@@ -113,8 +113,10 @@ class PitchCalibrator:
         model_path: str,
         confidence: float = 0.50,
         image_size: int = 1280,
-        min_keypoints: int = 4,
-        smoothing_frames: int = 5,
+        min_keypoints: int = 6,
+        smoothing: float = 0.35,
+        max_stale_frames: int = 8,
+        max_reprojection_error: float = 150.0,
     ):
         from ultralytics import YOLO
 
@@ -123,14 +125,50 @@ class PitchCalibrator:
         self.confidence = confidence
         self.image_size = image_size
         self.min_keypoints = min_keypoints
-        self.history = deque(maxlen=max(1, smoothing_frames))
+        self.smoothing = float(np.clip(smoothing, 0.0, 1.0))
+        self.max_stale_frames = max(0, int(max_stale_frames))
+        self.max_reprojection_error = float(max_reprojection_error)
         self.last_transformer: Optional[ViewTransformer] = None
         self.last_visible_keypoints = 0
+        self.last_fresh = False
+        self.stale_age = 0
+        self.smoothed_image_vertices: Optional[np.ndarray] = None
+        self.fresh_frames = 0
+        self.reused_frames = 0
+        self.rejected_frames = 0
+        self.fresh_inlier_ratios = []
+        self.fresh_reprojection_errors = []
+
+    def _reuse_or_expire(self) -> Optional[ViewTransformer]:
+        self.last_fresh = False
+        if self.last_transformer is None:
+            self.rejected_frames += 1
+            return None
+        self.stale_age += 1
+        if self.stale_age > self.max_stale_frames:
+            self.last_transformer = None
+            self.smoothed_image_vertices = None
+            self.rejected_frames += 1
+            return None
+        self.reused_frames += 1
+        return self.last_transformer
+
+    @staticmethod
+    def _valid_geometry(transformer: ViewTransformer, frame_shape) -> bool:
+        """Reject singular/explosive maps before they enter temporal state."""
+        if not np.isfinite(transformer.matrix).all():
+            return False
+        if np.linalg.cond(transformer.matrix) > 1e8:
+            return False
+        height, width = frame_shape[:2]
+        sample = np.asarray(((0, 0), (width, 0), (width, height), (0, height)), np.float32)
+        mapped = transformer.transform_points(sample)
+        return bool(np.isfinite(mapped).all() and np.max(np.abs(mapped)) < 1e7)
 
     def infer(self, frame: np.ndarray) -> Optional[ViewTransformer]:
         result = self.model.predict(frame, imgsz=self.image_size, conf=0.05, verbose=False)[0]
         if result.keypoints is None or len(result.keypoints.xy) == 0:
-            return self.last_transformer
+            return self._reuse_or_expire()
         all_xy = result.keypoints.xy.detach().cpu().numpy()
         if result.keypoints.conf is None:
             all_confidence = np.ones(all_xy.shape[:2], dtype=np.float32)
@@ -145,19 +183,38 @@ class PitchCalibrator:
         valid = (confidence[:count] >= self.confidence) & np.isfinite(xy[:count]).all(axis=1)
         self.last_visible_keypoints = int(valid.sum())
         if self.last_visible_keypoints < self.min_keypoints:
-            return self.last_transformer
+            return self._reuse_or_expire()
         try:
             estimate = ViewTransformer(xy[:count][valid], self.config.vertices[:count][valid])
         except ValueError:
-            return self.last_transformer
-        if estimate.inlier_ratio < 0.60:
-            return self.last_transformer
-        self.history.append(estimate.matrix)
-        matrix = np.median(np.stack(self.history), axis=0)
-        matrix /= matrix[2, 2]
-        self.last_transformer = ViewTransformer.from_matrix(matrix)
-        self.last_transformer.inlier_ratio = estimate.inlier_ratio
-        self.last_transformer.reprojection_error = estimate.reprojection_error
+            return self._reuse_or_expire()
+        if (estimate.inlier_ratio < 0.60
+                or estimate.reprojection_error > self.max_reprojection_error
+                or not self._valid_geometry(estimate, frame.shape)):
+            return self._reuse_or_expire()
+
+        # Smooth image-space pitch geometry, then solve a new homography. Direct
+        # coefficient-wise homography averaging has no projective meaning.
+        image_vertices = estimate.inverse_points(self.config.vertices)
+        if not np.isfinite(image_vertices).all():
+            return self._reuse_or_expire()
+        if self.smoothed_image_vertices is None:
+            self.smoothed_image_vertices = image_vertices
+        else:
+            a = self.smoothing
+            self.smoothed_image_vertices = a * image_vertices + (1.0 - a) * self.smoothed_image_vertices
+        try:
+            smoothed = ViewTransformer(self.smoothed_image_vertices, self.config.vertices)
+        except ValueError:
+            return self._reuse_or_expire()
+        smoothed.inlier_ratio = estimate.inlier_ratio
+        smoothed.reprojection_error = estimate.reprojection_error
+        self.last_transformer = smoothed
+        self.last_fresh = True
+        self.stale_age = 0
+        self.fresh_frames += 1
+        self.fresh_inlier_ratios.append(estimate.inlier_ratio)
+        self.fresh_reprojection_errors.append(estimate.reprojection_error)
         return self.last_transformer
 
     def draw_pitch_overlay(self, frame: np.ndarray, transformer: Optional[ViewTransformer]) -> np.ndarray:

@@ -12,11 +12,12 @@ For the bundled model, the default `--stride 2 --imgsz 1280` is a good
 quality/speed trade-off.
 
 The bundled detector identifies ball, player, goalkeeper, and referee. The
-pipeline tracks those objects, clusters kit colours into two teams, estimates
-screen-space formation bands from stable player tracks, and emits conservative
-pass and shot candidates. Every inferred event is marked `heuristic` in the JSON.
-Unknown ball-owner frames are reported separately rather than being assigned to
-one team.
+pipeline tracks those objects, clusters kit colours into two teams, reports
+longitudinal player distributions (not formations), and emits low-confidence
+pass/shot candidates for review. Observed and short-gap inferred ball/ownership
+frames are reported separately; inferred frames are excluded from possession
+percentages. `--tracker-conf`, `--person-conf`, `--ball-conf`, and
+`--ball-gap-frames` expose the important temporal thresholds.
 
 ## Advanced calibrated analysis
 
@@ -65,4 +66,7 @@ Player names need jersey-number OCR plus a match roster. Reliable foul,
 free-kick/corner/penalty, and goal classification needs labelled video clips and
 a temporal action-recognition model. Formation and territory results should only
 be treated as tactical measurements when pitch-calibration coverage and homography
-quality in the JSON report are high.
+quality in the JSON report are high. Territory remains in absolute pitch
+coordinates because attack direction is not verified. Calibration residuals
+are internal fit diagnostics, not proof of real-world tactical accuracy. See
+`IMPROVEMENTS.md` for validation commands and the labelled-data/training plan.

@@ -14,7 +14,10 @@ class TacticalRadar:
         self.scale = scale
         self.padding = padding
         self.ball_zones = Counter()
+        self.ball_zones_by_observation_source = {"detected": Counter(), "predicted_gap_fill": Counter()}
         self.calibrated_ball_frames = 0
+        self.ball_frames_by_calibration_source = Counter()
+        self.ball_frames_by_observation_source = Counter()
 
     def blank_pitch(self) -> np.ndarray:
         width = int(self.config.length * self.scale) + 2 * self.padding
@@ -34,7 +37,7 @@ class TacticalRadar:
             int(float(point[1]) * self.scale) + self.padding,
         )
 
-    def observe_ball(self, point) -> None:
+    def observe_ball(self, point, calibration_source="fresh", observation_source="detected") -> None:
         if point is None:
             return
         x, y = map(float, point)
@@ -45,7 +48,12 @@ class TacticalRadar:
         channel = "left_channel" if y < self.config.width / 3 else "central_channel" if y < 2 * self.config.width / 3 else "right_channel"
         self.ball_zones[longitudinal] += 1
         self.ball_zones[channel] += 1
+        source_zones = self.ball_zones_by_observation_source.setdefault(observation_source, Counter())
+        source_zones[longitudinal] += 1
+        source_zones[channel] += 1
         self.calibrated_ball_frames += 1
+        self.ball_frames_by_calibration_source[calibration_source] += 1
+        self.ball_frames_by_observation_source[observation_source] += 1
 
     def draw(self, objects: list[dict]) -> np.ndarray:
         pitch = self.blank_pitch()
@@ -69,7 +77,7 @@ class TacticalRadar:
                 cv2.circle(pitch, center, 8, (20, 20, 20), 1, cv2.LINE_AA)
         return pitch
 
-    def composite(self, frame: np.ndarray, objects: list[dict], width_ratio: float = 0.38) -> np.ndarray:
+    def composite(self, frame: np.ndarray, objects: list[dict], width_ratio: float = 0.27) -> np.ndarray:
         radar = self.draw(objects)
         target_width = max(240, int(frame.shape[1] * width_ratio))
         ratio = target_width / radar.shape[1]
@@ -87,5 +95,14 @@ class TacticalRadar:
         keys = ("defensive_third", "middle_third", "attacking_third", "left_channel", "central_channel", "right_channel")
         return {
             "calibrated_ball_frames": total,
-            "zone_percent": {key: round(100 * self.ball_zones[key] / max(total, 1), 1) for key in keys},
+            "frames_by_calibration_source": dict(self.ball_frames_by_calibration_source),
+            "frames_by_observation_source": dict(self.ball_frames_by_observation_source),
+            "absolute_pitch_zone_percent_all_accepted": {key: round(100 * self.ball_zones[key] / max(total, 1), 1) for key in keys},
+            "absolute_pitch_zone_percent_detected_only": {
+                key: round(100 * self.ball_zones_by_observation_source["detected"][key]
+                           / max(self.ball_frames_by_observation_source["detected"], 1), 1)
+                for key in keys
+            },
+            "attack_direction_normalized": False,
+            "interpretation": "Absolute left-to-right pitch occupancy; defensive/attacking labels require a verified per-team attack direction.",
         }
